@@ -1,0 +1,77 @@
+---
+title: "Detect the Effect"
+output: html_notebook
+---
+```{r setup, include = F}
+library(tidyverse)
+```
+
+## Load Data
+
+```{r load-data, message=FALSE}
+
+cnames <- c("ID", "length", "judgement", "effect_size", 
+            "effect_size_direction", "true_mean1", "true_mean2", 
+            "obs_mean_1", "obs_mean2", "obs_mean_dif", "df", 
+            "tvalue", "pvalues", "obs_power", "d")
+
+#Read in data----
+all_data <- read_tsv("alldata.csv", col_names = cnames) %>%
+  mutate(correct = ifelse((judgement>0) == (effect_size>0), 1, 0),
+         significant = ifelse(pvalues <= 0.05, 1, 0)
+  )
+
+#subset data ((note use of levels to deal with factor)) only trials with more than 5 responses
+all_data_sub <- filter(all_data, length > 5) %>%
+  mutate(effect_size_direction = factor(effect_size_direction),
+         judgement = factor(judgement))
+
+```
+
+## Plots
+
+### Observed Mean Difference Across Conditions
+
+```{r, fig.width=7, fig.height=2, eval=F, include=F}
+#plot observed mean difference across conditions
+ggplot(all_data_sub,aes(x=obs_mean_dif, color = factor(judgement)))+
+  geom_density() +
+  facet_grid(~effect_size_direction) +
+  theme_bw()
+
+#ggsave("obs_mean_dif.png", width = 7, height = 2)
+```
+
+```{r, fig.width=7, fig.height=5}
+#plot observed mean difference across conditions
+ggplot(all_data_sub,aes(x=obs_mean_dif, color = effect_size_direction))+
+  geom_density() +
+  facet_grid(judgement~.) +
+  theme_bw()
+
+#ggsave("obs_mean_dif2.png", width = 7, height = 5)
+```
+
+
+```{r, fig.width=7, fig.height=5}
+#plot d across conditions
+ggplot(all_data_sub,aes(x=d, color = effect_size_direction))+
+  geom_density() +
+  facet_grid(judgement~.) +
+  theme_bw()
+```
+
+
+```{r}
+#plot d as a function of effect size (0.8, 0.5,0.2,0,-0.2 etc) and judgments and significance
+ggplot(all_data_sub,aes(x=-d))+geom_histogram() + 
+  facet_grid(effect_size_direction~significant*judgement) +
+  theme_bw()
+
+#Plot the p-values (you see p-values are lower when they say yes)
+ggplot(all_data_sub,aes(x=pvalues))+geom_histogram() + 
+  facet_grid(effect_size_direction~significant*judgement) +
+  theme_bw()
+```
+
+
