@@ -95,5 +95,5 @@ summarize(data, d = mean(-d, na.rm = T)) #note -d because d in dataset is calcul
 #Analyze p-values
 data <- group_by(all_data_sub, effect_size_direction, judgement)
 
-summarize(data, pvaluessig = sum(pvalues <= 0.05), pvalues_nonsig = sum(pvalues > 0.05), power = sum(pvalues <= 0.05)/(sum(pvalues > 0.05) + sum(pvalues <= 0.05))*100)
+summarize(data, pvaluessig = sum(pvalues <= 0.05), pvalues_nonsig = sum(pvalues > 0.05), power = sum(pvalues <= 0.05)/(sum(pvalues > 0.05) + sum(pvalues <= 0.05))*100, mean_dif = mean(obs_mean_dif, na.rm = T))
 
