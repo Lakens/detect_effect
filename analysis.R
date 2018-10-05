@@ -70,6 +70,11 @@ all_data$correct <- ifelse(all_data$judgement == 0 & (all_data$effect_size== 0) 
                            1,
                            0)
 
+#create variable for sig/nonsig
+all_data$significant <- ifelse(all_data$pvalues <= 0.05,
+                               1,
+                               0)
+
 #Plots----
 
 #subset data ((note use of levels to deal with factor))only trials with more than 5 responses
@@ -83,6 +88,21 @@ ggplot(all_data_sub,aes(x=obs_mean_dif))+geom_histogram() +
 ggplot(all_data_sub,aes(x=d))+geom_histogram() + 
   facet_grid(~effect_size_direction*judgement) +
   theme_bw()
+
+ggplot(all_data_sub,aes(x=-d))+geom_histogram() + 
+  facet_grid(~effect_size_direction*significant) +
+  theme_bw()
+
+#plot d as a function of effect size (0.8, 0.5,0.2,0,-0.2 etc) and judgments and significance
+ggplot(all_data_sub,aes(x=-d))+geom_histogram() + 
+  facet_grid(effect_size_direction~significant*judgement) +
+  theme_bw()
+
+#Plot the p-values (you see p-values are lower when they say yes)
+ggplot(all_data_sub,aes(x=pvalues))+geom_histogram() + 
+  facet_grid(effect_size_direction~significant*judgement) +
+  theme_bw()
+
 
 #mean power
 data <- group_by(all_data_sub, effect_size_direction, judgement)
