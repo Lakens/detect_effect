@@ -122,7 +122,7 @@ server <- function(input, output, session) {
     shinyjs::enable("sampleButton")
     shinyjs::disable("resetButton")
     
-    values$effect_size <- sample(c(0, 0, 0, 0.2, 0.5, 0.8), 1, 0)
+    values$effect_size <- sample(c(0, 0, 0, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8), 1, 0),
     values$direction <- sample(c(-1, 1), 1, 0)
     values$shift_es <- sample(c(0, 0.5, 1), 1, 0)
     values$count <- 0
