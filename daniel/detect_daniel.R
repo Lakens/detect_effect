@@ -287,9 +287,7 @@ server <- function(input, output, session) {
               as.numeric(unlist(grouplist))
             )
     # Create a unique file name
-    fileName <- sprintf("%s_%s.csv", 
-                        as.integer(Sys.time()), 
-                        digest::digest(data))
+    fileName <- paste(format(Sys.time(), "%Y_%m_%d_%I_%H_%M_%S_%s"), "csv", sep = ".")
     # Write the file to the local system
     write.table(
       x = data,
