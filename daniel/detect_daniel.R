@@ -195,24 +195,27 @@ server <- function(input, output, session) {
                             n=round((sum(grouplist==1)+sum(grouplist==2))/2),
                             sig.level=0.05,
                             type="two.sample")$power
-
-    # direction_correct <- 0
-    # if(values$judgement == 1 & values$direction == 1){direction_correct <- 1}
-    # if(values$judgement == 2 & values$direction == -1){direction_correct <- 1}
-    # if(values$judgement == 0){direction_correct <- 9}
-    # if(direction_correct == 1){direction_correct_text <- "Your direction was correct."}
-    # if(direction_correct == 0){direction_correct_text <- "Your direction was not correct."}
-    # if(direction_correct == 9){direction_correct_text <- ""}
-    
+    df <- round(z$parameter[[1]], digits=2)
+    t <- format(z$stat[[1]], 
+                digits = 3, nsmall = 3, 
+                scientific = FALSE)
+    p <- format(z$p.value[[1]], 
+                digits = 3, nsmall = 3, 
+                scientific = FALSE)
+    ## calculate important vars
     correct <- 0
-    if(values$judgement == 0 & values$effect_size*values$direction == 0){correct <- 1}
-    if(values$judgement == 1 & values$effect_size*values$direction > 0){correct <- 1}
-    if(values$judgement == 2 & values$effect_size*values$direction < 0){correct <- 1}
+    effect <- values$effect_size*values$direction
+    circle_mean <- (0 + values$shift_es) * values$direction
+    square_mean <- (values$effect_size + values$shift_es) * values$direction
+    circle_obs <- round(z$estimate[[1]],2)
+    square_obs <- round(z$estimate[[2]],2)
+    
+    if(values$judgement == 0 & effect == 0) {correct <- 1}
+    if(values$judgement == 1 & effect > 0)  {correct <- 1}
+    if(values$judgement == 2 & effect < 0)  {correct <- 1}
     
     values$correct_trials <- values$correct_trials + correct
     
-    circle_mean <- (0 + values$shift_es) * values$direction
-    square_mean <- (values$effect_size + values$shift_es) * values$direction
     output$your_response <- renderText({
       correct_txt <- ifelse(correct == 1, "correct", "incorrect")
       circle_dir <- ifelse(circle_mean == square_mean, "equal to",
@@ -223,25 +226,14 @@ server <- function(input, output, session) {
     
     output$response_table <- renderTable({data.frame(
       "type" = c("Actual Value", "What You Observed"),
-      "circle mean" = c(
-        circle_mean,
-        round(z$estimate[[1]],2)
-      ),
-      "square mean" = c(
-        square_mean,
-        round(z$estimate[[2]],2)
-      ),
-      "difference" = c(
-        values$effect_size*values$direction,
-        round(z$estimate[[2]],2)-round(z$estimate[[1]],2)
-      )
+      "circle mean" = c(circle_mean, circle_obs),
+      "square mean" = c(square_mean, square_obs),
+      "difference" = c(effect, square_obs - circle_obs)
     )})
     
     output$nhst <- renderText({
       paste0("The null hypothesis significance test was ",
-             testoutcome, ", t(",round(z$parameter[[1]], digits=2),
-             ") = ", format(z$stat[[1]], digits = 3, nsmall = 3, scientific = FALSE),
-             ", p = ",format(z$p.value[[1]], digits = 3, nsmall = 3, scientific = FALSE),
+             testoutcome, ", t(", df, ") = ", t, ", p = ", p,
              ", given an alpha of 0.05")
     })
     
