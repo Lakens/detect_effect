@@ -44,6 +44,9 @@ ui <- fluidPage(theme= shinytheme("lumen"),
 )
 
 # Set reactiveValues ----
+prior <- c(sample(c(0,0,0), sample(0:3,1,0), 0), sample(c(0.2,0.2,0.2), sample(0:3,1,0), 0), sample(c(0.5,0.5,0.5), sample(0:3,1,0), 0), sample(c(0.8,0.8,0.8), sample(0:3,1,0), 0))
+if(length(prior)==0){prior <- sample(c(0, 0, 0, 0.2, 0.5, 0.8), 1, 0)}
+
 values <- reactiveValues(
   means = list(),
   grouplist = list(),
@@ -51,7 +54,7 @@ values <- reactiveValues(
   n = 1,
   min_x = -7,
   max_x = 7,
-  effect_size = sample(c(0, 0, 0, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8), 1, 0),
+  effect_size = sample(prior, 1, 0),
   direction = sample(c(-1, 1), 1, 0),
   shift_es = sample(c(0, 0.5, 1), 1, 0),
   count = 0,
@@ -122,7 +125,10 @@ server <- function(input, output, session) {
     shinyjs::enable("sampleButton")
     shinyjs::disable("resetButton")
     
-    values$effect_size <- sample(c(0, 0, 0, 0.2, 0.5, 0.8), 1, 0)
+    prior <- c(sample(c(0,0,0), sample(0:3,1,0), 0), sample(c(0.2,0.2,0.2), sample(0:3,1,0), 0), sample(c(0.5,0.5,0.5), sample(0:3,1,0), 0), sample(c(0.8,0.8,0.8), sample(0:3,1,0), 0))
+    if(length(prior)==0){prior <- sample(c(0, 0, 0, 0.2, 0.5, 0.8), 1, 0)}
+    
+    values$effect_size <- sample(prior, 1, 0)
     values$direction <- sample(c(-1, 1), 1, 0)
     values$shift_es <- sample(c(0, 0.5, 1), 1, 0)
     values$count <- 0
