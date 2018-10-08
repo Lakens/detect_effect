@@ -5,42 +5,42 @@ library(shinythemes)
 
 # Define UI ----
 ui <- fluidPage(theme= shinytheme("lumen"),
-  useShinyjs(), #add useShinyjs to be able to disable buttons upon making a choice.
-  # extendShinyjs(text = jsResetCode),
-  # Application title
-  titlePanel("Guess The Effect"),
-  
-  # Show a plot of the generated distribution
-  sidebarPanel(
-    textInput("ID", "Fill in your student ID in the field below", 1234567),
-    h5("Your task is to guess whether there is a real difference between two groups, one represented by circles, and one represented by squares. To inform your guess, you will sample individual data points from each group."),
-    p("The real difference between the two groups will be randomly decided by the app (and shown after you made your decision). The difference is either an effect size of 0, 0.2, 0.5, or 0.8. If there is an effect, it can be positive or negative (i.e., squared can have a higher or lower means than circles)."),
-    h5("You should sample data until you are 80% certain about your decision about whether there is a real difference or not. If you do this task 30 times, you should guess correctly 24 of the 30 times."),
-    p("Click the 'Start A New Trial' button to start, and click the 'Sample A New Datapoint' button until you are 80% certain of your choice. Then click one of the two buttons below the figure to submit your choice. Afterwards, the app will reveal whether you were correct or not. You can click the 'Start A New Trial' button to start again. The app will keep track of your performence."),
-    tags$br(),
-    actionButton("resetButton", "Start a New Trial", 
-                 style = "padding:20px; font-size:140%"),
-    tags$br(),
-    tags$br(),
-    actionButton("sampleButton", "Sample a new datapoint", 
-                 style = "padding:20px; font-size:140%"),
-    h4(uiOutput("displaycount")),
-    h4(uiOutput("displayNTrials")),
-    h4(uiOutput("displayCorrectTrials"))
-  ),
-  mainPanel(
-    plotOutput("Plot"),
-    actionButton("noButton1", "Circle mean is smaller than Square mean",
-                 style = "padding:10px; font-size:105%"),
-    actionButton("yesButton", "The groups are equal", 
-                 style = "padding:10px; font-size:105%; margin: 40px"),
-    actionButton("noButton2", "Circle  mean is larger than Square mean",
-                 style = "padding:10px; font-size:105%"),
-    htmlOutput("your_response"),
-    textOutput("nhst"),
-    tableOutput("response_table"),
-    textOutput("results_msg")
-  )
+                useShinyjs(), #add useShinyjs to be able to disable buttons upon making a choice.
+                # extendShinyjs(text = jsResetCode),
+                # Application title
+                titlePanel("Guess The Effect"),
+                
+                # Show a plot of the generated distribution
+                sidebarPanel(
+                  textInput("ID", "Fill in your student ID in the field below", 1234567),
+                  h5("Your task is to guess whether there is a real difference between two groups, one represented by circles, and one represented by squares. To inform your guess, you will sample individual data points from each group."),
+                  p("The real difference between the two groups will be randomly decided by the app (and shown after you made your decision). The difference is either an effect size of 0, 0.2, 0.5, or 0.8. If there is an effect, it can be positive or negative (i.e., squared can have a higher or lower means than circles)."),
+                  h5("You should sample data until you are 80% certain about your decision about whether there is a real difference or not. If you do this task 30 times, you should guess correctly 24 of the 30 times."),
+                  p("Click the 'Start A New Trial' button to start, and click the 'Sample A New Datapoint' button until you are 80% certain of your choice. Then click one of the two buttons below the figure to submit your choice. Afterwards, the app will reveal whether you were correct or not. You can click the 'Start A New Trial' button to start again. The app will keep track of your performence."),
+                  tags$br(),
+                  actionButton("resetButton", "Start a New Trial", 
+                               style = "padding:20px; font-size:140%"),
+                  tags$br(),
+                  tags$br(),
+                  actionButton("sampleButton", "Sample a new datapoint", 
+                               style = "padding:20px; font-size:140%"),
+                  h4(uiOutput("displaycount")),
+                  h4(uiOutput("displayNTrials")),
+                  h4(uiOutput("displayCorrectTrials"))
+                ),
+                mainPanel(
+                  plotOutput("Plot"),
+                  actionButton("noButton1", "Circle mean is smaller than Square mean",
+                               style = "padding:10px; font-size:105%"),
+                  actionButton("yesButton", "The groups are equal", 
+                               style = "padding:10px; font-size:105%; margin: 40px"),
+                  actionButton("noButton2", "Circle  mean is larger than Square mean",
+                               style = "padding:10px; font-size:105%"),
+                  htmlOutput("your_response"),
+                  textOutput("nhst"),
+                  tableOutput("response_table"),
+                  textOutput("results_msg")
+                )
 )
 
 # Set reactiveValues ----
@@ -173,80 +173,80 @@ server <- function(input, output, session) {
   
   ## Display results ----
   observeEvent(c(input$noButton1,
-                  input$noButton2,
-                  input$yesButton),  {
-    if (values$count == 0 | length(values$means) == 0) { return(FALSE) }
-    
-    message("results: ", values$judgement, " (", 
-            values$effect_size*values$direction, ")")
-    
-    means <- values$means
-    grouplist <- values$grouplist
-    
-    data <- data.frame(
-      "means" = as.numeric(unlist(means)), 
-      "grouplist" = as.numeric(unlist(grouplist))
-    )
-
-    #Perform t-test and save as z
-    z <- t.test(means ~ grouplist, data, var.equal = TRUE)
-    
-    #Is test significant or not?
-    testoutcome<-ifelse(z$p.value<.05,"significant","non-significant")
-    
-    #Calculate Cohen's d
-    d <- z$stat[[1]] * sqrt(sum(grouplist==1)+sum(grouplist==2))/
-                       sqrt(sum(grouplist==1)*sum(grouplist==2))
-    obs_power <- pwr.t.test(d=d,
-                            n=round((sum(grouplist==1)+sum(grouplist==2))/2),
-                            sig.level=0.05,
-                            type="two.sample")$power
-    df <- round(z$parameter[[1]], digits=2)
-    t <- format(z$stat[[1]], 
-                digits = 3, nsmall = 3, 
-                scientific = FALSE)
-    p <- format(z$p.value[[1]], 
-                digits = 3, nsmall = 3, 
-                scientific = FALSE)
-    ## calculate important vars
-    correct <- 0
-    effect <- values$effect_size*values$direction
-    circle_mean <- (0 + values$shift_es) * values$direction
-    square_mean <- (values$effect_size + values$shift_es) * values$direction
-    circle_obs <- round(z$estimate[[1]],2)
-    square_obs <- round(z$estimate[[2]],2)
-    
-    if(values$judgement == 0 & effect == 0) {correct <- 1}
-    if(values$judgement == 1 & effect > 0)  {correct <- 1}
-    if(values$judgement == 2 & effect < 0)  {correct <- 1}
-    
-    values$correct_trials <- values$correct_trials + correct
-    
-    output$your_response <- renderText({
-      correct_txt <- ifelse(correct == 1, "correct", "incorrect")
-      circle_dir <- ifelse(circle_mean == square_mean, "equal to",
-                           ifelse(circle_mean > square_mean, "larger than", "smaller than"))
-      
-      paste0("<h4>Your response was ", correct_txt, ": The circle mean was ", circle_dir, " the square mean.</h4>")
-    })
-    
-    output$response_table <- renderTable({data.frame(
-      "type" = c("Actual Value", "What You Observed"),
-      "circle mean" = c(circle_mean, circle_obs),
-      "square mean" = c(square_mean, square_obs),
-      "difference" = c(effect, square_obs - circle_obs)
-    )})
-    
-    output$nhst <- renderText({
-      paste0("The null hypothesis significance test was ",
-             testoutcome, ", t(", df, ") = ", t, ", p = ", p,
-             ", given an alpha of 0.05")
-    })
-    
-    output$results_msg <- renderText({"You can click the 'Start A New Trial' button to start again. The app will keep track of your performance."})
-    
-    return(TRUE)
-  })
+                 input$noButton2,
+                 input$yesButton),  {
+                   if (values$count == 0 | length(values$means) == 0) { return(FALSE) }
+                   
+                   message("results: ", values$judgement, " (", 
+                           values$effect_size*values$direction, ")")
+                   
+                   means <- values$means
+                   grouplist <- values$grouplist
+                   
+                   data <- data.frame(
+                     "means" = as.numeric(unlist(means)), 
+                     "grouplist" = as.numeric(unlist(grouplist))
+                   )
+                   
+                   #Perform t-test and save as z
+                   z <- t.test(means ~ grouplist, data, var.equal = TRUE)
+                   
+                   #Is test significant or not?
+                   testoutcome<-ifelse(z$p.value<.05,"significant","non-significant")
+                   
+                   #Calculate Cohen's d
+                   d <- z$stat[[1]] * sqrt(sum(grouplist==1)+sum(grouplist==2))/
+                     sqrt(sum(grouplist==1)*sum(grouplist==2))
+                   obs_power <- pwr.t.test(d=d,
+                                           n=round((sum(grouplist==1)+sum(grouplist==2))/2),
+                                           sig.level=0.05,
+                                           type="two.sample")$power
+                   df <- round(z$parameter[[1]], digits=2)
+                   t <- format(z$stat[[1]], 
+                               digits = 3, nsmall = 3, 
+                               scientific = FALSE)
+                   p <- format(z$p.value[[1]], 
+                               digits = 3, nsmall = 3, 
+                               scientific = FALSE)
+                   ## calculate important vars
+                   correct <- 0
+                   effect <- values$effect_size*values$direction
+                   circle_mean <- (0 + values$shift_es) * values$direction
+                   square_mean <- (values$effect_size + values$shift_es) * values$direction
+                   circle_obs <- round(z$estimate[[1]],2)
+                   square_obs <- round(z$estimate[[2]],2)
+                   
+                   if(values$judgement == 0 & effect == 0) {correct <- 1}
+                   if(values$judgement == 1 & effect > 0)  {correct <- 1}
+                   if(values$judgement == 2 & effect < 0)  {correct <- 1}
+                   
+                   values$correct_trials <- values$correct_trials + correct
+                   
+                   output$your_response <- renderText({
+                     correct_txt <- ifelse(correct == 1, "correct", "incorrect")
+                     circle_dir <- ifelse(circle_mean == square_mean, "equal to",
+                                          ifelse(circle_mean > square_mean, "larger than", "smaller than"))
+                     
+                     paste0("<h4>Your response was ", correct_txt, ": The circle mean was ", circle_dir, " the square mean.</h4>")
+                   })
+                   
+                   output$response_table <- renderTable({data.frame(
+                     "type" = c("Actual Value", "What You Observed"),
+                     "circle mean" = c(circle_mean, circle_obs),
+                     "square mean" = c(square_mean, square_obs),
+                     "difference" = c(effect, square_obs - circle_obs)
+                   )})
+                   
+                   output$nhst <- renderText({
+                     paste0("The null hypothesis significance test was ",
+                            testoutcome, ", t(", df, ") = ", t, ", p = ", p,
+                            ", given an alpha of 0.05")
+                   })
+                   
+                   output$results_msg <- renderText({"You can click the 'Start A New Trial' button to start again. The app will keep track of your performance."})
+                   
+                   return(TRUE)
+                 })
   
   ## Generate Plot after Guess and Save Data ----
   observeEvent(c(input$noButton1, input$noButton2, input$yesButton),  {
@@ -267,7 +267,7 @@ server <- function(input, output, session) {
     #Perform t-test and save as z
     z <- t.test(means ~ grouplist, data, var.equal = TRUE)
     d <- z$stat[[1]] * sqrt(sum(grouplist==1)+sum(grouplist==2))/
-                       sqrt(sum(grouplist==1)*sum(grouplist==2))
+      sqrt(sum(grouplist==1)*sum(grouplist==2))
     obs_power <- pwr.t.test(d=d,
                             n=round((sum(grouplist==1)+sum(grouplist==2))/2),
                             sig.level=0.05,
@@ -291,7 +291,7 @@ server <- function(input, output, session) {
               d, 
               as.numeric(unlist(means)), 
               as.numeric(unlist(grouplist))
-            )
+    )
     # Create a unique file name
     fileName <- sprintf(paste(format(Sys.time(), "%Y_%m_%d_%I_%H_%M_%S_%s"), "csv", sep = "."))
     # Write the file to the local system
