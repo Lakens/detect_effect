@@ -109,7 +109,7 @@ data <- group_by(all_data_sub, effect_size_direction, judgement)
 
 summarize(data, power = mean(obs_power, na.rm = T))
 summarize(data, mean_dif = mean(obs_mean_dif, na.rm = T))
-summarize(data, d = mean(-d, na.rm = T)) #note -d because d in dataset is calculated in opposite diferection!
+summarize(data, d = mean(abs(-d), na.rm = T)) #note -d because d in dataset is calculated in opposite diferection!
 
 
 #Analyze p-values
