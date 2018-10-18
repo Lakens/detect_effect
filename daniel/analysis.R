@@ -50,6 +50,11 @@ ggplot(all_data_sub,aes(x=obs_mean_dif))+geom_histogram() +
   facet_grid(~effect_size_direction*judgement) +
   theme_bw()
 
+ggplot(all_data_sub,aes(x=obs_mean_dif))+geom_histogram() + 
+  facet_grid(~effect_size*judgement) +
+  theme_bw()
+
+
 ggplot(all_data_sub,aes(x=d))+geom_histogram() + 
   facet_grid(~effect_size_direction*judgement) +
   theme_bw()
@@ -66,14 +71,14 @@ ggplot(all_data_sub,aes(x=obs_mean_dif, color = effect_size_direction))+
 
 
 #Calculate X% of data
-find_cover_region <- function(x, alpha=0.80) {
+find_cover_region <- function(x, alpha=0.5) {
   n <- length(x)
   x <- sort(x)
   k <- as.integer(round((1-alpha) * n))
   i <- which.min(x[seq.int(n-k, n)] - x[seq_len(k+1L)])
   c(x[i], x[n-k+i-1L])
 }
-tapply(all_data_sub$d, all_data_sub$judgement, find_cover_region)
+tapply(-all_data_sub$d, all_data_sub$judgement, find_cover_region)
 tapply(all_data_sub$obs_mean_dif, all_data_sub$judgement, find_cover_region)
 
 
@@ -96,4 +101,4 @@ summarize(data, d = mean(-d, na.rm = T)) #note -d because d in dataset is calcul
 
 #Analyze p-values
 data <- group_by(all_data_sub, effect_size_direction, judgement)
-summarize(data, pvaluessig = sum(pvalues <= 0.05), pvalues_nonsig = sum(pvalues > 0.05), power = sum(pvalues <= 0.05)/(sum(pvalues > 0.05) + sum(pvalues <= 0.05))*100, mean_dif = mean(obs_mean_dif, na.rm = T))
+summarize(data, n = length(d), pvaluessig = sum(pvalues <= 0.05), pvalues_nonsig = sum(pvalues > 0.05), power = sum(pvalues <= 0.05)/(sum(pvalues > 0.05) + sum(pvalues <= 0.05))*100, mean_dif = mean(obs_mean_dif, na.rm = T), obs_power = mean(obs_power, na.rm = T))
