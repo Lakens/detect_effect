@@ -189,3 +189,126 @@ find_cover_region <- function(x, alpha=0.5) {
 tapply(-all_data_sub$d, all_data_sub$response, find_cover_region)
 tapply(all_data_sub$obs_mean_dif, all_data_sub$response, find_cover_region)
 ```
+
+## Cumulative means
+
+Calculate cumulative means at each observation for each trial.
+
+```{r}
+cummeans <- all_data_sub %>%
+  mutate(trial = row_number()) %>%
+  unnest() %>%
+  mutate(key = ifelse(val %in% c(1, 2), "grp", "val")) %>%
+  group_by(trial, key) %>%
+  mutate(obs_n = row_number()) %>%
+  ungroup() %>%
+  spread(key, val) %>%
+  mutate(obs_n = ceiling(obs_n/2),
+         grp = recode(grp, "1" = "A", "2" = "B")) %>%
+  spread(grp, val) %>%
+  mutate(val = B-A) %>%
+  group_by(trial) %>%
+  mutate(cummean = cumsum(val) / obs_n) %>%
+  ungroup()
+```
+
+Plot cumulative means at each observation for effect size by response.
+
+```{r plot_cumulative_means, fig.width=10, fig.height=10}
+cummeans %>%
+  ggplot(aes(obs_n, cummean, color = as.factor(trial))) +
+  geom_hline(aes(yintercept = effect_size), color = "grey50") +
+  geom_line(show.legend = FALSE) +
+  facet_grid(effect_size~response, labeller = label_both)
+
+ggsave("cummean.png", width = 10, height = 10)
+```
+
+```{r plot_cumulative_means_binned, fig.width=20, fig.height=15}
+
+binwidth <- 10
+cummeans %>%
+  mutate(length_bin = ceiling(length/2/binwidth) * binwidth) %>%
+  ggplot(aes(obs_n, cummean, group = as.factor(trial), color = as.factor(response))) +
+  geom_hline(aes(yintercept = effect_size)) +
+  geom_line(show.legend = FALSE) +
+  facet_grid(effect_size~length_bin, labeller = label_both, scales = "free_x") +
+  scale_color_manual(values = c(alpha("blue", .3), 
+                                alpha("black", .3), 
+                                alpha("red", .3))) +
+  scale_x_continuous(breaks = seq(0, 150, by = binwidth)) +
+  coord_cartesian(ylim = c(-2, 2)) +
+  ggtitle("Cumulative means for decision length bins")
+
+ggsave("cummean_binned.png", width = 20, height = 15)
+```
+
+
+```{r plot_cumulative_means_0, fig.width=20, fig.height=15}
+
+binwidth <- 10
+cummeans %>%
+  filter(effect_size == 0) %>%
+  mutate(length_bin = ceiling(length/2/binwidth) * binwidth) %>%
+  ggplot(aes(obs_n, cummean, group = as.factor(trial), color = as.factor(response))) +
+  geom_hline(aes(yintercept = effect_size)) +
+  geom_line(show.legend = FALSE) +
+  facet_grid(response~length_bin, labeller = label_both, scales = "free_x") +
+  scale_color_manual(values = c(alpha("blue", .3), 
+                                alpha("black", .3), 
+                                alpha("red", .3))) +
+  scale_x_continuous(breaks = seq(0, 150, by = binwidth)) +
+  coord_cartesian(ylim = c(-2, 2)) +
+  ggtitle("Cumulative means for decision length bins where effect size = 0")
+
+ggsave("cummean_binned_0.png", width = 20, height = 15)
+```
+
+
+Some model comparison of predictors of correct responses. "after_N" variables are how close the cumulative mean is to the effect size after 10, 20, 30, etc observation pairs. This is probably not a great analysis strategy.
+
+```{r}
+
+maxlen <- 50
+
+dat <- cummeans %>%
+  filter(length/2 >= maxlen, obs_n %in% seq(10, maxlen, by = 10)) %>%
+  mutate(obs_n = paste0("after_", obs_n),
+         close = abs(cummean - effect_size)) %>%
+  select(trial, effect_size, effect_size_abs, correct, obs_n, close) %>%
+  spread(obs_n, close)
+
+
+mod10 <- glm(correct ~ effect_size_abs + after_10, family = binomial, data = dat)
+summary(mod10)
+
+mod20 <- glm(correct ~ effect_size_abs + after_20, family = binomial, data = dat)
+summary(mod20)
+
+mod30 <- glm(correct ~ effect_size_abs + after_30, family = binomial, data = dat)
+summary(mod30)
+
+mod40 <- glm(correct ~ effect_size_abs + after_40, family = binomial, data = dat)
+summary(mod40)
+
+mod50 <- glm(correct ~ effect_size_abs + after_50, family = binomial, data = dat)
+summary(mod50)
+
+# compare models using AIC
+library(AICcmodavg)
+models <- list()
+models[[1]] <- mod10
+models[[2]] <- mod20
+models[[3]] <- mod30
+models[[4]] <- mod40
+models[[5]] <- mod50
+modelnames <- seq(10, maxlen, by = 10)
+atab <- aictab(models, modelnames)
+atab
+```
+
+
+
+
+
+
