@@ -1,5 +1,5 @@
 ---
-title: "Daniël Analysis"
+title: "Daniël's Data"
 output: html_document
 ---
 
@@ -30,7 +30,7 @@ df_filled <- lapply(datalist,function(x) {
   return(ans)
 })
 
-colnamelist <- c("ID", "length", "judgement", "effect_size", "effect_size_direction", "true_mean1", "true_mean2", "obs_mean_1", "obs_mean2", "obs_mean_dif", "df", "tvalue", "pvalues", "obs_power", "d")
+colnamelist <- c("ID", "length", "response", "effect_size_abs", "effect_size", "true_mean1", "true_mean2", "obs_mean_1", "obs_mean2", "obs_mean_dif", "df", "tvalue", "pvalue", "obs_power", "d")
 
 #combine lists into a dataframe, make numeric and rename columns
 dat <- do.call(rbind, df_filled) %>%
@@ -55,40 +55,42 @@ dat <- do.call(rbind, df_filled) %>%
 
 all_data <- dat %>%
   mutate(
-    significant = ifelse(pvalues <= 0.05, 1, 0),
-    judgement = recode(judgement, "0" = 0, "1" = 1, "2" = -1),
+    significant = ifelse(pvalue <= 0.05, 1, 0),
+    response = recode(response, "0" = 0, "1" = 1, "2" = -1),
     right_answer = case_when( 
-      (effect_size_direction == 0) ~ 0,
-      (effect_size_direction > 0) ~ 1,
-      (effect_size_direction < 0) ~ -1
+      (effect_size == 0) ~ 0,
+      (effect_size > 0) ~ 1,
+      (effect_size < 0) ~ -1
     ),
-    correct = ifelse(judgement == right_answer, 1, 0)
+    correct = ifelse(response == right_answer, 1, 0)
   )
 
-#subset data ((note use of levels to deal with factor)) only trials with more than 5 responses
+#subset data, only trials with more than 5 responses
 all_data_sub <- filter(all_data, length > 5)
 ```
 
 ```{r}
+# calculate percents for each judgment as sig for each effect_size
+# for use in plots below
 sub_pcnt <- all_data_sub %>%
-  group_by(right_answer, effect_size_direction) %>%
+  group_by(right_answer, effect_size) %>%
   summarise(
-    sig = mean(pvalues < .05) %>% round(2),
-    z = mean(judgement == 0),
-    p = mean(judgement == 1),
-    n = mean(judgement == -1)
+    sig = mean(pvalue < .05) %>% round(2),
+    z = mean(response == 0),
+    p = mean(response == 1),
+    n = mean(response == -1)
   ) %>%
-  gather(judgement, pcnt, z:n) %>%
+  gather(response, pcnt, z:n) %>%
   mutate(
-    judgement = recode(judgement, "z" = 0, "p" = 1, "n" = -1),
+    response = recode(response, "z" = 0, "p" = 1, "n" = -1),
     pcnt = round(pcnt, 2),
-    correct = right_answer == judgement
+    correct = right_answer == response
   )
 ```
 
 ## Plots
 
-### Observed mean difference across conditions
+### Observed mean difference by effect size and response
 
 ```{r obs-mean-diff, fig.width = 8, fig.height = 5}
   ggplot() +
@@ -96,11 +98,11 @@ sub_pcnt <- all_data_sub %>%
               aes(fill = correct),
               xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
               alpha = 0.3, show.legend = FALSE) +
-    geom_vline(data = all_data_sub, aes(xintercept = effect_size_direction), color = "red") +
+    geom_vline(data = all_data_sub, aes(xintercept = effect_size), color = "red") +
     geom_histogram(data = all_data_sub, aes(x=obs_mean_dif), 
                    binwidth = 0.1, color = "black", fill = "white") + 
     geom_text(data = sub_pcnt, aes(label = pcnt), x = -1.5, y = 25) +
-    facet_grid(judgement~effect_size_direction) +
+    facet_grid(response~effect_size, labeller = label_both) +
     theme_bw() +
     scale_fill_manual(values = c("white", "grey50"))
 
@@ -108,8 +110,68 @@ ggsave("obs_mean_diff.png", width = 16, height = 10)
 
 ```
 
+### P-values by effect size and response
+
+```{r fig-p, fig.width = 8, fig.height = 5}
+ggplot() +
+  geom_rect(data = sub_pcnt, aes(fill = correct),
+              xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
+              alpha = 0.3, show.legend = FALSE) +
+  geom_histogram(data = all_data_sub, aes(x=pvalue),
+                 binwidth = 0.05, boundary = 0, 
+                 color = "black", fill = "white", alpha = 0.5) + 
+  geom_text(data = sub_pcnt, aes(label = sig), x = .2, y = 50) +
+  facet_grid(response ~ effect_size, labeller = label_both) +
+  theme_bw() +
+  scale_fill_manual(values = c("white", "grey50"))
+
+ggsave("power.png", width = 16, height = 10)
+```
+
+## Actual and observed d and power by effect size and response
+
+(I filtered out rows with <= 5 observations)
+
+```{r}
+all_data_sub %>%
+  group_by(effect_size, response, correct) %>%
+  summarize(
+    n = n(),
+    mean_d = mean(-d, na.rm = T), #note -d because d in dataset is calculated in opposite diferection!
+    power = mean(pvalue <= 0.05), 
+    mean_obs_d = mean(obs_mean_dif, na.rm = T), 
+    obs_power = mean(obs_power, na.rm = T)
+  ) %>%
+  mutate_if(is.double, round, 3) %>%
+  filter(n > 5) %>%
+  knitr::kable()
+
+```
+
+## Actual and observed d and power by effect size
+
+(ignoring response)
+
+```{r}
+all_data_sub %>%
+  group_by(effect_size) %>%
+  summarize(
+    n = n(),
+    correct_pcnt = mean(correct),
+    mean_d = mean(-d, na.rm = T), #note -d because d in dataset is calculated in opposite diferection!
+    power = mean(pvalue <= 0.05), 
+    mean_obs_d = mean(obs_mean_dif, na.rm = T), 
+    obs_power = mean(obs_power, na.rm = T)
+  ) %>%
+  mutate_if(is.double, round, 3) %>%
+  knitr::kable()
+
+```
 
 # Calculate X% of data
+
+(I'm not sure what's going on here)
+
 ```{r}
 
 find_cover_region <- function(x, alpha=0.5) {
@@ -119,38 +181,6 @@ find_cover_region <- function(x, alpha=0.5) {
   i <- which.min(x[seq.int(n-k, n)] - x[seq_len(k+1L)])
   c(x[i], x[n-k+i-1L])
 }
-tapply(-all_data_sub$d, all_data_sub$judgement, find_cover_region)
-tapply(all_data_sub$obs_mean_dif, all_data_sub$judgement, find_cover_region)
+tapply(-all_data_sub$d, all_data_sub$response, find_cover_region)
+tapply(all_data_sub$obs_mean_dif, all_data_sub$response, find_cover_region)
 ```
-
-
-```{r fig-p, fig.width = 8, fig.height = 5}
-ggplot() +
-  geom_rect(data = sub_pcnt, aes(fill = correct),
-              xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
-              alpha = 0.3, show.legend = FALSE) +
-  geom_histogram(data = all_data_sub, aes(x=pvalues),
-                 binwidth = 0.05, boundary = 0, 
-                 color = "black", fill = "white", alpha = 0.5) + 
-  geom_text(data = sub_pcnt, aes(label = sig), x = .2, y = 50) +
-  facet_grid(judgement ~ effect_size_direction) +
-  theme_bw() +
-  scale_fill_manual(values = c("white", "grey50"))
-
-ggsave("power.png", width = 16, height = 10)
-```
-
-#mean power
-```{r}
-data <- group_by(all_data_sub, effect_size_direction, judgement)
-
-summarize(data, power = mean(obs_power, na.rm = T))
-summarize(data, mean_dif = mean(obs_mean_dif, na.rm = T))
-summarize(data, d = mean(-d, na.rm = T)) #note -d because d in dataset is calculated in opposite diferection!
-
-#Analyze p-values
-data <- group_by(all_data_sub, effect_size_direction, judgement)
-summarize(data, n = length(d), pvaluessig = sum(pvalues <= 0.05), pvalues_nonsig = sum(pvalues > 0.05), power = sum(pvalues <= 0.05)/(sum(pvalues > 0.05) + sum(pvalues <= 0.05))*100, mean_dif = mean(obs_mean_dif, na.rm = T), obs_power = mean(obs_power, na.rm = T))
-
-```
-
