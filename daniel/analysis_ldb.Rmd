@@ -75,15 +75,20 @@ all_data_sub <- filter(all_data, length > 5)
 sub_pcnt <- all_data_sub %>%
   group_by(right_answer, effect_size) %>%
   summarise(
-    sig = mean(pvalue < .05) %>% round(2),
-    z = mean(response == 0),
-    p = mean(response == 1),
-    n = mean(response == -1)
+    pcnt_z = mean(response == 0),
+    pcnt_p = mean(response == 1),
+    pcnt_n = mean(response == -1),
+    sig_z = sum(response == 0 & pvalue < .05)/sum(response == 0),
+    sig_p = sum(response == 1 & pvalue < .05)/sum(response == 1),
+    sig_n = sum(response == -1 & pvalue < .05)/sum(response == -1)
   ) %>%
-  gather(response, pcnt, z:n) %>%
+  gather(key, val, pcnt_z:sig_n) %>%
+  separate(key, c("key", "response")) %>%
+  spread(key, val) %>%
   mutate(
     response = recode(response, "z" = 0, "p" = 1, "n" = -1),
     pcnt = round(pcnt, 2),
+    sig = round(ifelse(is.nan(sig), 0, sig), 3),
     correct = right_answer == response
   )
 ```
@@ -92,7 +97,7 @@ sub_pcnt <- all_data_sub %>%
 
 ### Observed mean difference by effect size and response
 
-```{r obs-mean-diff, fig.width = 8, fig.height = 5}
+```{r obs-mean-diff, fig.width = 16, fig.height = 10}
   ggplot() +
     geom_rect(data = sub_pcnt,
               aes(fill = correct),
@@ -112,7 +117,7 @@ ggsave("obs_mean_diff.png", width = 16, height = 10)
 
 ### P-values by effect size and response
 
-```{r fig-p, fig.width = 8, fig.height = 5}
+```{r fig-p, fig.width = 16, fig.height = 10}
 ggplot() +
   geom_rect(data = sub_pcnt, aes(fill = correct),
               xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
@@ -120,7 +125,7 @@ ggplot() +
   geom_histogram(data = all_data_sub, aes(x=pvalue),
                  binwidth = 0.05, boundary = 0, 
                  color = "black", fill = "white", alpha = 0.5) + 
-  geom_text(data = sub_pcnt, aes(label = sig), x = .2, y = 50) +
+  geom_text(data = sub_pcnt, aes(label = paste("%sig =", sig*100)), x = .2, y = 50) +
   facet_grid(response ~ effect_size, labeller = label_both) +
   theme_bw() +
   scale_fill_manual(values = c("white", "grey50"))
